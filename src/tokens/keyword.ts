@@ -1,0 +1,14 @@
+export enum Keyword {
+	SELECT,
+	INSERT,
+	UPDATE,
+	DELETE,
+	DISTINCT,
+	FROM,
+	WHERE,
+	GROUP_BY,
+	HAVING,
+	ORDER_BY,
+	LIMIT,
+	IDENTIFIER,
+}

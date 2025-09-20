@@ -1,13 +1,4 @@
-import {
-	KeywordToken,
-	ComparatorToken,
-	// LogicalOperatorToken,
-	ArithmeticOperatorToken,
-	LiteralToken,
-	SymbolToken,
-	FileToken,
-	type TokenType
-} from "./tokenType.js";
+import * as TokenCategory from "../tokens/index.js";
 
 import { Token } from "./Token.js";
 
@@ -62,7 +53,7 @@ class Lexer {
 
 		// Trim the surrounding quotes.
 		const value: string = this.#source.substring(this.#start + 1, this.#current - 1);
-		this.#addToken(LiteralToken.QUOTED_STR, value);
+		this.#addToken(TokenCategory.Literal.SINGLE_QUOTE, value);
 	}
 
 	#isDigit(c: string): boolean {
@@ -70,6 +61,8 @@ class Lexer {
 	}
 
 	#number(): void {
+		let isInteger = true;
+
 		while (this.#isDigit(this.#peek())) this.#advance();
 
 		// Look for a fractional part.
@@ -78,10 +71,12 @@ class Lexer {
 			this.#advance();
 
 			while (this.#isDigit(this.#peek())) this.#advance();
+
+			isInteger = false;
 		}
 
 		this.#addToken(
-			LiteralToken.NUMBER,
+			(isInteger ? TokenCategory.Literal.INTEGER : TokenCategory.Literal.DECIMAL),
 			parseFloat(
 				this.#source.substring(this.#start, this.#current)
 			)
@@ -102,7 +97,7 @@ class Lexer {
 	#identifier(): void {
 		while (this.#isAlphaNumeric(this.#peek())) this.#advance();
 
-		this.#addToken(KeywordToken.INDENTIFIER, null);
+		this.#addToken(TokenCategory.Keyword.IDENTIFIER, null);
 	}
 
 
@@ -110,23 +105,23 @@ class Lexer {
 		const c: string = this.#advance();
 
 		switch (c) {
-		case '(': this.#addToken(SymbolToken.L_PAREN, null); break;
-		case ')': this.#addToken(SymbolToken.R_PAREN, null); break;
-		case '{': this.#addToken(SymbolToken.L_CURLY, null); break;
-		case '}': this.#addToken(SymbolToken.R_CURLY, null); break;
-		case '[': this.#addToken(SymbolToken.L_BRACK, null); break;
-		case ']': this.#addToken(SymbolToken.R_BRACK, null); break;
-		case ',': this.#addToken(SymbolToken.COMMA, null); break;
-		case '.': this.#addToken(SymbolToken.DOT, null); break;
-		case '?': this.#addToken(SymbolToken.WTF, null); break;
+		case '(': this.#addToken(TokenCategory.Symbol.L_PAREN, null); break;
+		case ')': this.#addToken(TokenCategory.Symbol.R_PAREN, null); break;
+		case '{': this.#addToken(TokenCategory.Symbol.L_CURLY, null); break;
+		case '}': this.#addToken(TokenCategory.Symbol.R_CURLY, null); break;
+		case '[': this.#addToken(TokenCategory.Symbol.L_BRACK, null); break;
+		case ']': this.#addToken(TokenCategory.Symbol.R_BRACK, null); break;
+		case ',': this.#addToken(TokenCategory.Symbol.COMMA, null); break;
+		case '.': this.#addToken(TokenCategory.Symbol.DOT, null); break;
+		case '?': this.#addToken(TokenCategory.Symbol.QUESTION_MARK, null); break;
 		case '<':
 			this.#addToken(
 				(
 					this.#match(["="])
-					? ComparatorToken.LTE
+					? TokenCategory.Comparator.LTE
 					: this.#match([">"])
-						? ComparatorToken.NEQ
-						: ComparatorToken.LT
+						? TokenCategory.Comparator.NEQ
+						: TokenCategory.Comparator.LT
 				),
 				null
 			);
@@ -135,8 +130,8 @@ class Lexer {
 			this.#addToken(
 				(
 					this.#match(["="])
-					? ComparatorToken.GTE
-					: ComparatorToken.GT
+					? TokenCategory.Comparator.GTE
+					: TokenCategory.Comparator.GT
 				),
 				null
 			);
@@ -146,7 +141,7 @@ class Lexer {
 			if (this.#match(["-"])) {
 				while (this.#peek() != '\n' && !this.#isAtEnd()) this.#advance();
 			} else {
-				this.#addToken(ArithmeticOperatorToken.HYPHEN, null);
+				this.#addToken(TokenCategory.ArithmeticOperator.MINUS, null);
 			}
 
 			break;
@@ -178,7 +173,7 @@ class Lexer {
 		return this.#source.charAt(this.#current++);
 	}
 
-	#addToken(type: TokenType, literal: string | number | null): void {
+	#addToken(type: TokenCategory.Type, literal: string | number | null): void {
 		const text: string = this.#source.substring(this.#start, this.#current);
 
 		this.#tokens.push(
@@ -193,7 +188,7 @@ class Lexer {
 			this.#scanToken();
 		}
 
-		this.#tokens.push(new Token(FileToken.EOF, "", null, this.#line));
+		this.#tokens.push(new Token(TokenCategory.FileControl.EOF, "", null, this.#line));
 
 		return this.#tokens;
 	}
