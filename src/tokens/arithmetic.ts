@@ -1,6 +1,6 @@
 export enum ArithmeticOperator {
-	PLUS,
-	MINUS,
-	DIVIDE,
-	MULTIPLY,
+	PLUS = "PLUS",
+	MINUS = "MINUS",
+	DIVIDE = "DIVIDE",
+	MULTIPLY = "MULTIPLY",
 }

@@ -1,4 +1,4 @@
 export enum LogicalOperator {
-	AND,
-	OR,
+	AND = "AND",
+	OR = "OR",
 }

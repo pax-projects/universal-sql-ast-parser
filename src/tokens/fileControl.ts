@@ -1,3 +1,3 @@
 export enum FileControl {
-	EOF,				 // End Of File
+	EOF = "EOF",				 // End Of File
 }

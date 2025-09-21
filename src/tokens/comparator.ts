@@ -1,9 +1,9 @@
 export enum Comparator {
-	EQ,   				 // =
-	GT,   				 // >
-	LT,   				 // <
-	GTE,  				 // >=
-	LTE,  				 // <=
-	NEQ,  				 // !=
-	DIFF, 				 // <>
+	EQ = "EQ",		// =
+	GT = "GT",		// >
+	LT = "LT",		// <
+	GTE = "GTE",	// >=
+	LTE = "LTE",	// <=
+	NEQ = "NEQ",	// !=
+	DIFF = "DIFF",	// <>
 }

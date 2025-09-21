@@ -1,4 +1,6 @@
 import * as TokenCategory from "../tokens/index.js";
+import { LiteralType } from "../tokens/literal.js";
+import { SYMBOL_MAP } from "../tokens/symbol.js";
 
 import { Token } from "./Token.js";
 
@@ -14,13 +16,31 @@ class Lexer {
 		this.#source = source;
 	}
 
+	/************************************************************/
+	/* LEXER STATE & POINTER METHODS                            */
+	/************************************************************/
 	#isAtEnd(): boolean {
 		return this.#current >= this.#source.length;
 	}
 
-	#match(expectations: Array<string>): boolean {
+	#advance(): string {
+		return this.#source.charAt(this.#current++);
+	}
+
+	#addToken(type: TokenCategory.Type, literal: LiteralType): void {
+		const text: string = this.#source.substring(this.#start, this.#current);
+
+		this.#tokens.push(
+			new Token(type, text, literal, this.#line, this.#current)
+		);
+	}
+
+	/************************************************************/
+	/* SOURCE INPUT GETTERS                                     */
+	/************************************************************/
+	#match(expected: string): boolean {
 		if (this.#isAtEnd()) return false;
-		if (!expectations.includes(this.#source.charAt(this.#current))) return false;
+		if (expected !== this.#source.charAt(this.#current)) return false;
 
 		this.#current++;
 		return true;
@@ -37,6 +57,24 @@ class Lexer {
 		return this.#source.charAt(this.#current + 1);
 	}
 
+	// Char categorties
+	#isDigit(c: string): boolean {
+		return c >= '0' && c <= '9';
+	}
+
+	#isAlpha(c: string): boolean {
+		return (c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z') ||
+		c == '_';
+	}
+
+	#isAlphaNumeric(c: string): boolean {
+		return this.#isAlpha(c) || this.#isDigit(c);
+	}
+
+	/************************************************************/
+	/* TOKEN ANALYSER METHODS                                   */
+	/************************************************************/
 	#string(): void {
 		while (this.#peek() != '"' && !this.#isAtEnd()) {
 			if (this.#peek() == '\n') this.#line++;
@@ -54,10 +92,6 @@ class Lexer {
 		// Trim the surrounding quotes.
 		const value: string = this.#source.substring(this.#start + 1, this.#current - 1);
 		this.#addToken(TokenCategory.Literal.SINGLE_QUOTE, value);
-	}
-
-	#isDigit(c: string): boolean {
-		return c >= '0' && c <= '9';
 	}
 
 	#number(): void {
@@ -83,43 +117,29 @@ class Lexer {
 		);
 	}
 
-	#isAlpha(c: string): boolean {
-		return (c >= 'a' && c <= 'z') ||
-		(c >= 'A' && c <= 'Z') ||
-		c == '_';
-	}
-
-	#isAlphaNumeric(c: string): boolean {
-		return this.#isAlpha(c) || this.#isDigit(c);
-	}
-
-
 	#identifier(): void {
 		while (this.#isAlphaNumeric(this.#peek())) this.#advance();
 
 		this.#addToken(TokenCategory.Keyword.IDENTIFIER, null);
 	}
 
-
+	/************************************************************/
+	/* MAIN SCANNING LOGIC                                      */
+	/************************************************************/
 	#scanToken() {
 		const c: string = this.#advance();
 
+		if (this.#isDigit(c)) this.#number();
+		if (this.#isAlpha(c)) this.#identifier();
+		if (SYMBOL_MAP[c]) this.#addToken(SYMBOL_MAP[c], null);
+
 		switch (c) {
-		case '(': this.#addToken(TokenCategory.Symbol.L_PAREN, null); break;
-		case ')': this.#addToken(TokenCategory.Symbol.R_PAREN, null); break;
-		case '{': this.#addToken(TokenCategory.Symbol.L_CURLY, null); break;
-		case '}': this.#addToken(TokenCategory.Symbol.R_CURLY, null); break;
-		case '[': this.#addToken(TokenCategory.Symbol.L_BRACK, null); break;
-		case ']': this.#addToken(TokenCategory.Symbol.R_BRACK, null); break;
-		case ',': this.#addToken(TokenCategory.Symbol.COMMA, null); break;
-		case '.': this.#addToken(TokenCategory.Symbol.DOT, null); break;
-		case '?': this.#addToken(TokenCategory.Symbol.QUESTION_MARK, null); break;
 		case '<':
 			this.#addToken(
 				(
-					this.#match(["="])
+					this.#match("=")
 					? TokenCategory.Comparator.LTE
-					: this.#match([">"])
+					: this.#match(">")
 						? TokenCategory.Comparator.NEQ
 						: TokenCategory.Comparator.LT
 				),
@@ -129,7 +149,7 @@ class Lexer {
 		case '>':
 			this.#addToken(
 				(
-					this.#match(["="])
+					this.#match("=")
 					? TokenCategory.Comparator.GTE
 					: TokenCategory.Comparator.GT
 				),
@@ -138,7 +158,7 @@ class Lexer {
 			break;
 		// Handle minus and comments
 		case '-':
-			if (this.#match(["-"])) {
+			if (this.#match("-")) {
 				while (this.#peek() != '\n' && !this.#isAtEnd()) this.#advance();
 			} else {
 				this.#addToken(TokenCategory.ArithmeticOperator.MINUS, null);
@@ -157,28 +177,10 @@ class Lexer {
 			this.#line++;
 			break;
 		default:
-			if (this.#isDigit(c)) {
-				this.#number();
-			} else if (this.#isAlpha(c)) {
-				this.#identifier();
-			} else {
-				// console.error("Default case");
-			}
+			// console.error("Default case");
 
 			break;
 		}
-	}
-
-	#advance(): string {
-		return this.#source.charAt(this.#current++);
-	}
-
-	#addToken(type: TokenCategory.Type, literal: string | number | null): void {
-		const text: string = this.#source.substring(this.#start, this.#current);
-
-		this.#tokens.push(
-			new Token(type, text, literal, this.#line)
-		);
 	}
 
 	scan(): Array<Token> {
@@ -188,7 +190,7 @@ class Lexer {
 			this.#scanToken();
 		}
 
-		this.#tokens.push(new Token(TokenCategory.FileControl.EOF, "", null, this.#line));
+		this.#addToken(TokenCategory.FileControl.EOF, null);
 
 		return this.#tokens;
 	}

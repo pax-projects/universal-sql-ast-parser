@@ -5,4 +5,6 @@ const lexer: Lexer = new Lexer('SELECT * FROM tables WHERE (x > 18 AND y < -5);'
 
 const tokens = lexer.scan();
 
-tokens.forEach(token => console.log(token.toString()));
+tokens
+.map(token => token.toString())
+.forEach(tokenString => console.log(tokenString));
