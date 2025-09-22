@@ -1,5 +1,0 @@
-class AST {
-
-}
-
-export { AST };

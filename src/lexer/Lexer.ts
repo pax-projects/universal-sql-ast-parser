@@ -1,8 +1,14 @@
 import * as TokenCategory from "../tokens/index.js";
 import { LiteralType } from "../tokens/literal.js";
 import { SYMBOL_MAP } from "../tokens/symbol.js";
+import { ARITHMETIC_OPERATORS_MAP } from "../tokens/arithmetic.js";
+import { LOGICAL_OPERATORS_MAP } from "../tokens/logic.js";
+import { KEYWORDS_MAP } from "../tokens/keyword.js";
+import { FUNCTION_MAP } from "../tokens/sqlFunction.js";
 
 import { Token } from "./Token.js";
+
+import { Logger } from "../utils/Logger.js";
 
 class Lexer {
 	#source: string;
@@ -12,8 +18,12 @@ class Lexer {
 	#current: number = 0;
 	#line: number = 1;
 
+	readonly #logger: Logger;
+
 	constructor(source: string) {
 		this.#source = source;
+
+		this.#logger = new Logger();
 	}
 
 	/************************************************************/
@@ -29,6 +39,14 @@ class Lexer {
 
 	#addToken(type: TokenCategory.Type, literal: LiteralType): void {
 		const text: string = this.#source.substring(this.#start, this.#current);
+
+		// Avoid coupling last query char with EOF token.
+		if (type === TokenCategory.FileControl.EOF) {
+			this.#tokens.push(
+				new Token(type, '', '', this.#line, this.#current + 1)
+			);
+			return;
+		}
 
 		this.#tokens.push(
 			new Token(type, text, literal, this.#line, this.#current)
@@ -65,7 +83,8 @@ class Lexer {
 	#isAlpha(c: string): boolean {
 		return (c >= 'a' && c <= 'z') ||
 		(c >= 'A' && c <= 'Z') ||
-		c == '_';
+		c == '_' ||
+		c == '.';
 	}
 
 	#isAlphaNumeric(c: string): boolean {
@@ -75,14 +94,49 @@ class Lexer {
 	/************************************************************/
 	/* TOKEN ANALYSER METHODS                                   */
 	/************************************************************/
-	#string(): void {
-		while (this.#peek() != '"' && !this.#isAtEnd()) {
-			if (this.#peek() == '\n') this.#line++;
+	#string(type: TokenCategory.Literal): void {
+		let string_separator = '"';
+
+		// Get right string separator allowing multiple strings type
+		if (type === TokenCategory.Literal.SINGLE_QUOTE) string_separator = "'";
+		if (type === TokenCategory.Literal.DOUBLE_QUOTE) string_separator = '"';
+		if (type === TokenCategory.Literal.BACKTICK_QUOTE) string_separator = "`";
+
+		// Loop throw all chars inside string
+		while (!this.#isAtEnd()) {
+			const ch = this.#peek();
+
+			// newline inside string
+			if (ch === '\n') {
+				this.#line++;
+				this.#advance();
+				continue;
+			}
+
+			// SQL-style escaping by doubling: ''  ""  ``
+			if (ch === string_separator && this.#peekNext() === string_separator) {
+				// consume both separators and keep going (escaped quote)
+				this.#advance();
+				this.#advance();
+				continue;
+			}
+
+			// closing separator (not doubled) -> stop scanning content
+			if (ch === string_separator) break;
+
+			// backslash escape: consume backslash + next char (if any)
+			if (ch === '\\') {
+				this.#advance(); // consume '\'
+				if (!this.#isAtEnd()) this.#advance(); // consume escaped char (could be quote)
+				continue;
+			}
+
+			// normal char
 			this.#advance();
 		}
 
 		if (this.#isAtEnd()) {
-			// console.error("Unterminated string");
+			this.#logger.error(`Unterminated string at ${this.#start}`);
 			return;
 		}
 
@@ -91,9 +145,10 @@ class Lexer {
 
 		// Trim the surrounding quotes.
 		const value: string = this.#source.substring(this.#start + 1, this.#current - 1);
-		this.#addToken(TokenCategory.Literal.SINGLE_QUOTE, value);
+		this.#addToken(type, value);
 	}
 
+	// TODO: Check for the scientific notation
 	#number(): void {
 		let isInteger = true;
 
@@ -120,6 +175,25 @@ class Lexer {
 	#identifier(): void {
 		while (this.#isAlphaNumeric(this.#peek())) this.#advance();
 
+		// Checks type to ensure it's not a keyword, else, it gives type as KW
+		const text: string 		= this.#source.substring(this.#start, this.#current);
+		const upperText: string = text.toUpperCase();
+
+		if (LOGICAL_OPERATORS_MAP[upperText]) {
+			this.#addToken(LOGICAL_OPERATORS_MAP[upperText], text);
+			return;
+		}
+
+		if (KEYWORDS_MAP[upperText]) {
+			this.#addToken(KEYWORDS_MAP[upperText], text);
+			return;
+		}
+
+		if (FUNCTION_MAP[upperText]) {
+			this.#addToken(FUNCTION_MAP[upperText], text);
+			return;
+		}
+
 		this.#addToken(TokenCategory.Keyword.IDENTIFIER, null);
 	}
 
@@ -129,11 +203,28 @@ class Lexer {
 	#scanToken() {
 		const c: string = this.#advance();
 
-		if (this.#isDigit(c)) this.#number();
-		if (this.#isAlpha(c)) this.#identifier();
-		if (SYMBOL_MAP[c]) this.#addToken(SYMBOL_MAP[c], null);
+		if (this.#isDigit(c)) {
+			this.#number();
+			return;
+		}
+
+		if (this.#isAlpha(c)) {
+			this.#identifier();
+			return;
+		}
+
+		if (SYMBOL_MAP[c]) {
+			this.#addToken(SYMBOL_MAP[c], null);
+			return;
+		}
+
+		if (ARITHMETIC_OPERATORS_MAP[c]) {
+			this.#addToken(ARITHMETIC_OPERATORS_MAP[c], null);
+			return;
+		}
 
 		switch (c) {
+		case '=': this.#addToken(TokenCategory.Comparator.EQ, null); break;
 		case '<':
 			this.#addToken(
 				(
@@ -166,7 +257,9 @@ class Lexer {
 
 			break;
 		// Handle strings
-		case '"': this.#string(); break;
+		case '"': this.#string(TokenCategory.Literal.DOUBLE_QUOTE); break;
+		case "'": this.#string(TokenCategory.Literal.SINGLE_QUOTE); break;
+		case "`": this.#string(TokenCategory.Literal.BACKTICK_QUOTE); break;
 
 		case ' ':
 		case '\t':
@@ -177,8 +270,7 @@ class Lexer {
 			this.#line++;
 			break;
 		default:
-			// console.error("Default case");
-
+			this.#logger.error(`Default case: ${c}`);
 			break;
 		}
 	}
@@ -190,7 +282,7 @@ class Lexer {
 			this.#scanToken();
 		}
 
-		this.#addToken(TokenCategory.FileControl.EOF, null);
+		this.#addToken(TokenCategory.FileControl.EOF, "");
 
 		return this.#tokens;
 	}

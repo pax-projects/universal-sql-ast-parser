@@ -15,8 +15,8 @@ export class Logger {
 	#darkColor: string = "";
 
 	#fileName: string;
-	#lineNumber: number;
-	#columnNumber: number;
+	// #lineNumber: number;
+	// #columnNumber: number;
 
 	constructor() {
 		const err = new Error();
@@ -25,15 +25,15 @@ export class Logger {
 		const temp = line?.substring(line?.indexOf("C:"), line?.length).split(':');
 		if (!temp) {
 			this.#fileName = "unknown";
-			this.#lineNumber = 0;
-			this.#columnNumber = 0;
+			// this.#lineNumber = 0;
+			// this.#columnNumber = 0;
 
 			return;
 		}
 
 		this.#fileName = `C:${temp[1]}`;
-		this.#lineNumber = Number(temp[2]);
-		this.#columnNumber = Number(temp[3]);
+		// this.#lineNumber = Number(temp[2]);
+		// this.#columnNumber = Number(temp[3]);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,7 +92,8 @@ export class Logger {
 			lines = message.toString().split('\n');
 		}
 
-		lines.unshift(`${Logger.#GREY_DARK}@ ${this.#fileName} (${this.#lineNumber}:${this.#columnNumber})${Logger.#RESET}`, '');
+		// (${this.#lineNumber}:${this.#columnNumber})
+		lines.unshift(`${Logger.#GREY_DARK}@ ${this.#fileName}${Logger.#RESET}`, '');
 
 		// eslint-disable-next-line no-control-regex
 		const width = Math.max(...lines.map((l) => l.replace(/\x1b\[[0-9;]*m/g, '').length));

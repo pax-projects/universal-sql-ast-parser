@@ -2,6 +2,7 @@ export enum Literal {
 	// Strings
 	SINGLE_QUOTE = "SINGLE_QUOTE",			// 'abc'
 	DOUBLE_QUOTE = "DOUBLE_QUOTE",			// "abc"
+	BACKTICK_QUOTE = "BACKTICK_QUOTE",		// `abc`
 	ESCAPED = "ESCAPED",					// E'abc\n' (Postgres)
 	DOLLAR_QUOTED = "DOLLAR_QUOTED",		// $$abc$$ (Postgres)
 	ALT_QUOTED = "ALT_QUOTED",				// q'[abc]' (Oracle)
@@ -44,3 +45,10 @@ export enum Literal {
 }
 
 export type LiteralType = string | number | null;
+
+export type NumberType = 
+| Literal.INTEGER
+| Literal.DECIMAL
+| Literal.SCIENTIFIC
+| Literal.HEX
+| Literal.BINARY;

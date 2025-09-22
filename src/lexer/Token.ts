@@ -17,7 +17,7 @@ class Token {
 	}
 
 	toString(): string {
-		return `"${this.#lexeme}": ${this.#type.toString()} (at ${this.#line}:${this.#column})`;
+		return `[${this.#lexeme}]: ${this.#type.toString()} (at ${this.#line}:${this.#column})`;
 	}
 }
 
